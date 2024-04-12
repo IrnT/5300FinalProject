@@ -1,0 +1,158 @@
+---
+title: DSAN-5300 Final Project
+date: today
+author: 'Hannah Kim, Irene Tait, Kendall Gilbert, Powell Sheagren'
+format:
+  html:
+    embed-resources: true
+jupyter:
+  kernelspec:
+    display_name: R
+    language: R
+    name: ir
+---
+
+# Predict Energy Behavior of Prosumers
+
+Questions to Address
+
+* Business Classification:
+    * Predict whether the prosumer is a business or not based on the features. 
+* Electricity Prices:
+    * Predict the price of electricity and what features are having an impact on this price
+
+```{r}
+#| vscode: {languageId: r}
+# import necessary libraries
+library(dplyr)
+library(reshape2)
+library(corrplot)
+library(rjson)
+```
+
+## Load and Clean the data
+
+```{r}
+#| vscode: {languageId: r}
+# load the data
+# client data
+client <- read.csv('data/client.csv')
+
+# county_id_to_name_map data
+county_id_to_name <- fromJSON(file="county_id_to_name_map.json")
+county_id_to_name <- as.data.frame(county_id_to_name)
+
+# electricity prices data
+electricity <- read.csv('data/electricity_prices.csv')
+
+# gas prices data
+gas <- read.csv('data/gas_prices.csv')
+
+# drop the date and forecast_date column
+client = subset(client, select = -c(date))
+electricity = subset(electricity, select = -c(origin_date))
+gas = subset(gas, select = -c(origin_date))
+
+electricity = subset(electricity, select = -c(forecast_date))
+gas = subset(gas, select = -c(forecast_date))
+
+# merge the three datasets
+df <- merge(client, electricity, by = 'data_block_id')
+df <- merge(df, gas, by = 'data_block_id')
+head(df)
+```
+
+```{r}
+#| vscode: {languageId: r}
+prosumer <- read.csv('data/prosumer.csv')
+head(prosumer)
+```
+
+```{r}
+#| vscode: {languageId: r}
+forecast <- read.csv('data/weather_forecast.csv')
+head(forecast)
+```
+
+```{r}
+#| vscode: {languageId: r}
+history <- read.csv('data/weather_history.csv')
+head(history)
+```
+
+```{r}
+#| vscode: {languageId: r}
+weather_station_to_county <- read.csv('data/weather_station_to_county_mapping.csv')
+head(weather_station_to_county)
+```
+
+## Logistic Regression
+
+Possible Logistic / Linear Regression Tasks
+
+First Logistic regression task -  Predicting whether the prosumer is a business or not based on the available features. Uses client, electricity and gas CSV's.
+
+Linear Regression - linear regression to predict the euros_per_mwh variable based on other features
+
+
+```{r}
+#| vscode: {languageId: r}
+#Logistic Regression
+model <- glm(is_business ~  lowest_price_per_mwh + installed_capacity + eic_count  +  county + product_type + highest_price_per_mwh, data = df, family = binomial)
+summary(model)
+
+
+#Linear Regression
+linear_model <- lm(euros_per_mwh ~ is_business + lowest_price_per_mwh + installed_capacity + eic_count  +  county + product_type + highest_price_per_mwh, data = df)
+summary(linear_model)
+```
+
+## Lasso / Ridge
+
+```{r}
+#| vscode: {languageId: r}
+my_df <- df
+y <- my_df$is_business
+x <- my_df[, c('lowest_price_per_mwh', 'installed_capacity', 'eic_count', 'county', 'product_type', 'highest_price_per_mwh')]
+x <- as.matrix(x)
+cv_model <- cv.glmnet(x, y, alpha = 1)
+best_lambda <- cv_model$lambda.min
+best_lambda
+lass_log_coefs <- coef(cv_model, s = best_lambda)
+lass_log_coefs
+plot(cv_model)
+```
+
+```{r}
+#| vscode: {languageId: r}
+#Lasso
+x <- model.matrix(euros_per_mwh ~ is_business + lowest_price_per_mwh + installed_capacity + eic_count  +  county + product_type + highest_price_per_mwh, data = df)
+y <- df$euros_per_mwh
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+plot(lasso_model)
+best_lambda <- lasso_model$lambda.min
+best_lambda
+lasso_coefs <- coef(lasso_model, s = best_lambda)
+lasso_coefs
+```
+
+```{r}
+#| vscode: {languageId: r}
+# Ridge (alpha=0)
+x_logistic <- model.matrix(is_business ~ euros_per_mwh + lowest_price_per_mwh + installed_capacity + eic_count  +  county + product_type + highest_price_per_mwh, data = df)
+ridge_model_logistic <- cv.glmnet(x_logistic, y, alpha = 0)
+plot(ridge_model_logistic)
+best_lambda_logistic <- ridge_model_logistic$lambda.min
+best_lambda_logistic
+ridge_coefs_logistic <- coef(ridge_model_logistic, s = best_lambda_logistic)
+ridge_coefs_logistic
+
+# Ridge (alpha=0) - linear model
+x_linear <- model.matrix(euros_per_mwh ~ is_business + lowest_price_per_mwh + installed_capacity + eic_count  +  county + product_type + highest_price_per_mwh, data = df)
+ridge_model_linear <- cv.glmnet(x_linear, y)
+plot(ridge_model_linear)
+best_lambda_linear <- ridge_model_linear$lambda.min
+best_lambda_linear
+ridge_coefs_linear <- coef(ridge_model_linear, s = best_lambda_linear)
+ridge_coefs_linear
+```
