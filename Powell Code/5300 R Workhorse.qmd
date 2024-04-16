@@ -1,0 +1,64 @@
+---
+title: "5300 R Workhorse"
+format: html
+editor: visual
+---
+
+## the part where I fuck around and look at the data
+
+```{r}
+library(tidyverse)
+
+client <- read.csv("../data/client.csv")
+electricity_prices <- read.csv("../data/electricity_prices.csv")
+gas_prices <- read.csv("../data/gas_prices.csv")
+prosumer <- read.csv("../data/prosumer.csv")
+weather_forecast <- read.csv("../data/weather_forecast.csv")
+weather_history <- read.csv("../data/weather_history.csv")
+
+#client$data_block_id %>% table()
+
+```
+
+## The part where I map that shit
+
+```{r}
+library(sf)
+
+shape <- read_sf("../Shapefiles/ee.shp")
+plot(shape)
+
+ggplot(data = shape) + geom_sf()
+```
+
+## Creating Maps
+
+```{r}
+tidyset <- read.csv("../data/tidyset.csv")
+tidyset <- separate(tidyset, col = county_name, into = c("county_name","waste"), sep = "maa")
+tidyset <- tidyset %>% mutate(target = ConsumptionTarget - ProductionTarget)
+
+```
+
+
+```{r}
+
+countyset <- aggregate(tidyset$target, by = list(tidyset$county_name), FUN = mean)
+  
+colnames(countyset) <- c("name","PowerUse")
+
+countyset_sf <- left_join(shape,countyset, by = "name")
+
+```
+
+```{r}
+
+ggplot(data = countyset_sf) + geom_sf(aes(fill = PowerUse)) +
+  theme_minimal() +
+  
+
+```
+
+
+
+

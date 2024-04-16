@@ -1,0 +1,19 @@
+{
+    "EE37": "Harju", 
+    "EE39": "Hiiu", 
+    "EE44": "Ida-Viru", 
+    "EE49": "Jõgeva", 
+    "EE51": "Järva", 
+    "EE57": "Lääne", 
+    "EE59": "Lääne-Viru", 
+    "EE65": "Põlva", 
+    "EE67": "Pärnu", 
+    "EE70": "Rapla", 
+    "EE74": "Saare", 
+    "EE78": "Tartu", 
+    "EE82": "Valga", 
+    "EE84": "Viljandi", 
+    "EE86": "Võru"
+}
+
+The specific shapefile for estonia is ee.shp for reference
