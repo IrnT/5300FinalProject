@@ -1,0 +1,102 @@
+---
+title: DSAN-5300 Final Project
+date: today
+author: 'Hannah Kim, Irene Tait, Kendall Gilbert, Powell Sheagren'
+format:
+  html:
+    embed-resources: true
+jupyter:
+  kernelspec:
+    display_name: R
+    language: R
+    name: ir
+---
+
+## Tegression 
+
+Logistic Regression on Tidyset
+
+```{R}
+tidyset <- read_csv("~/Desktop/5300FinalProject/data/tidyset.csv")
+library(caret)
+library(glmnet)
+
+#Logistic Regression
+logistic_model_tidyset <- glm(is_business ~., data = tidyset, family = binomial)
+summary(logistic_model_tidyset)
+```
+```{R}
+#Lasso Logistic
+tidyset <- na.omit(tidyset)
+y <- tidyset$is_business
+x <- model.matrix(is_business ~ ., data = tidyset)
+x <- as.matrix(x)
+cv_model_lasso_logistic <- cv.glmnet(x, y, alpha = 1)
+best_lambda_lasso <- cv_model_lasso_logistic$lambda.min
+lass_log_coefs <- coef(cv_model_lasso_logistic, s = best_lambda_lasso)
+plot(cv_model_lasso_logistic)
+```
+
+```{R}
+#Ridge Logistic
+cv_model_ridge_logistic <- cv.glmnet(x, y, alpha = 0)
+best_lambda_ridge <- cv_model_ridge_logistic$lambda.min
+ridge_log_coefs <- coef(cv_model_ridge_logistic, s = best_lambda_ridge)
+plot(cv_model_ridge_logistic)
+```
+
+
+Linear Regression
+```{R}
+linear_model_tidyset <- lm(ConsumptionTarget ~., data = tidyset)
+summary(linear_model_tidyset)
+```
+
+```{R}
+# Make predictions using the fitted linear model
+predictions_linear <- predict(linear_model_tidyset)
+residuals_linear <- residuals(linear_model_tidyset)
+squared_residuals_linear <- residuals_linear^2
+mean_squared_error_linear <- mean(squared_residuals_linear)
+rmse_linear <- sqrt(mean_squared_error_linear)
+
+```
+
+```{R}
+#Linear Lasso
+tidyset <- na.omit(tidyset)
+x_linear <- model.matrix(ConsumptionTarget ~ ., data = tidyset)
+y_linear <- tidyset$ConsumptionTarget
+lasso_model_linear <- cv.glmnet(x_linear, y_linear, alpha = 1)
+plot(lasso_model_linear)
+best_lambda_linear <- lasso_model_linear$lambda.min
+best_lambda_linear
+lasso_coefs_linear <- coef(lasso_model_linear, s = best_lambda_linear)
+lasso_coefs_linear
+```
+Getting rmse for the linar model (lasso)
+```{R}
+predictions <- predict(lasso_model_linear, newx = x_linear, s = best_lambda_linear)
+squared_diff <- (predictions - y_linear)^2
+mean_squared_error <- mean(squared_diff)
+rmse <- sqrt(mean_squared_error)
+```
+
+```{R}
+#Linear Ridge
+ridge_model_linear <- cv.glmnet(x_linear, y_linear, alpha = 0)
+plot(ridge_model_linear)
+best_lambda_ridge <- ridge_model_linear$lambda.min
+best_lambda_ridge
+ridge_coefs_linear <- coef(ridge_model_linear, s = best_lambda_ridge)
+ridge_coefs_linear
+```
+
+```{R}
+predictions_two <- predict(ridge_model_linear, newx = x_linear, s = best_lambda_ridge)
+squared_diff_two <- (predictions_two - y_linear)^2
+mean_squared_error_two <- mean(squared_diff_two)
+rmse_two <- sqrt(mean_squared_error_two)
+```
+
+
