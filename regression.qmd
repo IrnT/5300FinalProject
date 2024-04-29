@@ -12,19 +12,79 @@ jupyter:
     name: ir
 ---
 
+Autocorrelation Resource - https://www.statology.org/durbin-watson-test-r/
+
 ## Tegression 
 
 Logistic Regression on Tidyset
 
 ```{R}
-tidyset <- read_csv("~/Desktop/5300FinalProject/data/tidyset.csv")
+library(readr)
+tidyset <- read_csv("data/tidyset.csv")
 library(caret)
 library(glmnet)
 
+# Scaling if needed
+#numeric_columns <- sapply(tidyset, is.numeric)
+#numeric_columns <- numeric_columns & names(tidyset) != "is_business"
+#numeric_tidyset <- tidyset[, numeric_columns]
+#scaled_numeric_tidyset <- scale(numeric_tidyset)
+#tidyset <- cbind(scaled_numeric_tidyset, tidyset[!numeric_columns])
+
+
 #Logistic Regression
+tidyset <- na.omit(tidyset)
+
 logistic_model_tidyset <- glm(is_business ~., data = tidyset, family = binomial)
 summary(logistic_model_tidyset)
+predictions <- predict(logistic_model_tidyset, newdata = tidyset, type = "response")
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+accuracy <- mean(predicted_classes == tidyset$is_business)
 ```
+
+```{R}
+# Logisitc versus LDA
+logistic_model <- glm(is_business ~ ., data = tidyset, family = binomial)
+lda_model <- lda(is_business ~ ., data = tidyset)
+logistic_pred <- predict(logistic_model, type = "response")
+lda_pred <- predict(lda_model, type = "response")$posterior[,2]
+
+
+#curves
+roc_logistic <- roc(tidyset$is_business, logistic_pred)
+roc_lda <- roc(tidyset$is_business, lda_pred)
+
+# Plotting
+plot(roc_logistic, col = "#a997df", main = "ROC Curves")
+plot(roc_lda, col = "#87A330", add = TRUE)
+legend("bottomright", legend = c("Logistic Regression", "LDA"), col = c("#05322F", "#87A330"), lty = 1)
+auc_logistic <- auc(roc_logistic)
+auc_lda <- auc(roc_lda)
+cat("Logistic Regression AUC:", auc_logistic, "\n")
+cat("LDA AUC:", auc_lda, "\n")
+
+logistic_pred_class <- ifelse(logistic_pred > 0.5, 1, 0)
+lda_pred_class <- ifelse(lda_pred > 0.5, 1, 0)
+
+# Calculate accuracy
+accuracy_logistic <- mean(logistic_pred_class == tidyset$is_business)
+accuracy_lda <- mean(lda_pred_class == tidyset$is_business)
+
+#Improoved accuracy
+cat("Logistic Regression Accuracy:", accuracy_logistic, "\n")
+cat("LDA Accuracy:", accuracy_lda, "\n")
+
+
+```
+
+Autocorrelation for Logistic Regression
+```{R}
+logistic_model_tidyset <- glm(is_business ~ ., data = tidyset, family = binomial)
+residuals <- residuals(logistic_model_tidyset, type = "pearson")
+dw_test <- dwtest(logistic_model_tidyset, alternative = "two.sided")
+print(dw_test)
+```
+
 ```{R}
 #Lasso Logistic
 tidyset <- na.omit(tidyset)
@@ -34,7 +94,8 @@ x <- as.matrix(x)
 cv_model_lasso_logistic <- cv.glmnet(x, y, alpha = 1)
 best_lambda_lasso <- cv_model_lasso_logistic$lambda.min
 lass_log_coefs <- coef(cv_model_lasso_logistic, s = best_lambda_lasso)
-plot(cv_model_lasso_logistic)
+plot(cv_model_lasso_logistic, color = "green", pch = 19)
+
 ```
 
 ```{R}
@@ -45,9 +106,28 @@ ridge_log_coefs <- coef(cv_model_ridge_logistic, s = best_lambda_ridge)
 plot(cv_model_ridge_logistic)
 ```
 
+```{R}
+
+# For Lasso Logistic Regression
+lasso_predicted <- predict(cv_model_lasso_logistic, newx = x, s = best_lambda_lasso, type = "response")
+lasso_predicted_class <- ifelse(lasso_predicted > 0.5, 1, 0)
+lasso_accuracy <- mean(lasso_predicted_class == y)
+lasso_accuracy
+
+# For Ridge Logistic Regression
+ridge_predicted <- predict(cv_model_ridge_logistic, newx = x, s = best_lambda_ridge, type = "response")
+ridge_predicted_class <- ifelse(ridge_predicted > 0.5, 1, 0)
+ridge_accuracy <- mean(ridge_predicted_class == y)
+ridge_accuracy
+```
+
 
 Linear Regression
 ```{R}
+
+#linear_model_tidyset <- lm(ConsumptionTarget - ProductionTarget ~., data = tidyset)
+#summary(linear_model_tidyset)
+
 linear_model_tidyset <- lm(ConsumptionTarget ~., data = tidyset)
 summary(linear_model_tidyset)
 ```
@@ -59,7 +139,6 @@ residuals_linear <- residuals(linear_model_tidyset)
 squared_residuals_linear <- residuals_linear^2
 mean_squared_error_linear <- mean(squared_residuals_linear)
 rmse_linear <- sqrt(mean_squared_error_linear)
-
 ```
 
 ```{R}
@@ -99,4 +178,12 @@ mean_squared_error_two <- mean(squared_diff_two)
 rmse_two <- sqrt(mean_squared_error_two)
 ```
 
-
+Autocorrelation for  linear regression
+```{R}
+# Fit linear regression model
+linear_model_tidyset <- lm(ConsumptionTarget ~ ., data = tidyset)
+# Obtain residuals for DW test
+residuals <- residuals(linear_model_tidyset)
+dw_test <- dwtest(linear_model_tidyset, alternative = "two.sided")
+print(dw_test)
+```
