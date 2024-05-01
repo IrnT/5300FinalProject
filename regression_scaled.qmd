@@ -1,0 +1,186 @@
+---
+title: DSAN-5300 Final Project
+date: today
+author: 'Hannah Kim, Irene Tait, Kendall Gilbert, Powell Sheagren'
+format:
+  html:
+    embed-resources: true
+jupyter:
+  kernelspec:
+    display_name: R
+    language: R
+    name: ir
+---
+
+This code is all the same as regression_not_scaled.qmd - except the data is now scaled. 
+
+Autocorrelation Resource - https://www.statology.org/durbin-watson-test-r/
+
+## Regression 
+
+Logistic Regression on Tidyset
+
+Cleaned Tidyset can be found in data folder
+
+```{R}
+library(readr)
+tidyset <- read_csv("data/tidyset.csv")
+library(caret)
+library(glmnet)
+
+# Scaling
+numeric_columns <- sapply(tidyset, is.numeric)
+numeric_columns <- numeric_columns & names(tidyset) != "is_business"
+numeric_tidyset <- tidyset[, numeric_columns]
+scaled_numeric_tidyset <- scale(numeric_tidyset)
+tidyset <- cbind(scaled_numeric_tidyset, tidyset[!numeric_columns])
+
+#Logistic Regression
+tidyset <- na.omit(tidyset)
+logistic_model_tidyset <- glm(is_business ~., data = tidyset, family = binomial)
+summary(logistic_model_tidyset)
+predictions <- predict(logistic_model_tidyset, newdata = tidyset, type = "response")
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+accuracy <- mean(predicted_classes == tidyset$is_business)
+```
+
+```{R}
+# Logistic versus LDA
+logistic_model <- glm(is_business ~ ., data = tidyset, family = binomial)
+lda_model <- lda(is_business ~ ., data = tidyset)
+logistic_pred <- predict(logistic_model, type = "response")
+lda_pred <- predict(lda_model, type = "response")$posterior[,2]
+
+#curves
+roc_logistic <- roc(tidyset$is_business, logistic_pred)
+roc_lda <- roc(tidyset$is_business, lda_pred)
+
+# Plotting
+plot(roc_logistic, col = "#a997df", main = "ROC Curves")
+plot(roc_lda, col = "#87A330", add = TRUE)
+legend("bottomright", legend = c("Logistic Regression", "LDA"), col = c("#05322F", "#87A330"), lty = 1)
+auc_logistic <- auc(roc_logistic)
+auc_lda <- auc(roc_lda)
+cat("Logistic Regression AUC:", auc_logistic, "\n")
+cat("LDA AUC:", auc_lda, "\n")
+
+logistic_pred_class <- ifelse(logistic_pred > 0.5, 1, 0)
+lda_pred_class <- ifelse(lda_pred > 0.5, 1, 0)
+
+# Calculate accuracy
+accuracy_logistic <- mean(logistic_pred_class == tidyset$is_business)
+accuracy_lda <- mean(lda_pred_class == tidyset$is_business)
+
+#Improoved accuracy
+cat("Logistic Regression Accuracy:", accuracy_logistic, "\n")
+cat("LDA Accuracy:", accuracy_lda, "\n")
+```
+
+Autocorrelation for Logistic Regression
+```{R}
+logistic_model_tidyset <- glm(is_business ~ ., data = tidyset, family = binomial)
+residuals <- residuals(logistic_model_tidyset, type = "pearson")
+dw_test <- dwtest(logistic_model_tidyset, alternative = "two.sided")
+print(dw_test)
+```
+
+```{R}
+#Lasso Logistic
+tidyset <- na.omit(tidyset)
+y <- tidyset$is_business
+x <- model.matrix(is_business ~ ., data = tidyset)
+x <- as.matrix(x)
+cv_model_lasso_logistic <- cv.glmnet(x, y, alpha = 1)
+best_lambda_lasso <- cv_model_lasso_logistic$lambda.min
+lass_log_coefs <- coef(cv_model_lasso_logistic, s = best_lambda_lasso)
+plot(cv_model_lasso_logistic, color = "green", pch = 19)
+```
+
+```{R}
+#Ridge Logistic
+cv_model_ridge_logistic <- cv.glmnet(x, y, alpha = 0)
+best_lambda_ridge <- cv_model_ridge_logistic$lambda.min
+ridge_log_coefs <- coef(cv_model_ridge_logistic, s = best_lambda_ridge)
+plot(cv_model_ridge_logistic)
+```
+
+```{R}
+# For Lasso Logistic Regression
+lasso_predicted <- predict(cv_model_lasso_logistic, newx = x, s = best_lambda_lasso, type = "response")
+lasso_predicted_class <- ifelse(lasso_predicted > 0.5, 1, 0)
+lasso_accuracy <- mean(lasso_predicted_class == y)
+lasso_accuracy
+
+# For Ridge Logistic Regression
+ridge_predicted <- predict(cv_model_ridge_logistic, newx = x, s = best_lambda_ridge, type = "response")
+ridge_predicted_class <- ifelse(ridge_predicted > 0.5, 1, 0)
+ridge_accuracy <- mean(ridge_predicted_class == y)
+ridge_accuracy
+```
+
+
+Linear Regression
+```{R}
+#linear_model_tidyset <- lm(ConsumptionTarget - ProductionTarget ~., data = tidyset)
+#summary(linear_model_tidyset)
+
+linear_model_tidyset <- lm(ConsumptionTarget ~., data = tidyset)
+summary(linear_model_tidyset)
+```
+
+```{R}
+# Make predictions using the fitted linear model
+predictions_linear <- predict(linear_model_tidyset)
+residuals_linear <- residuals(linear_model_tidyset)
+squared_residuals_linear <- residuals_linear^2
+mean_squared_error_linear <- mean(squared_residuals_linear)
+rmse_linear <- sqrt(mean_squared_error_linear)
+```
+
+```{R}
+#Linear Lasso
+tidyset <- na.omit(tidyset)
+x_linear <- model.matrix(ConsumptionTarget ~ ., data = tidyset)
+y_linear <- tidyset$ConsumptionTarget
+lasso_model_linear <- cv.glmnet(x_linear, y_linear, alpha = 1)
+plot(lasso_model_linear)
+best_lambda_linear <- lasso_model_linear$lambda.min
+best_lambda_linear
+lasso_coefs_linear <- coef(lasso_model_linear, s = best_lambda_linear)
+lasso_coefs_linear
+```
+
+Getting rmse for the linar model (lasso)
+```{R}
+predictions <- predict(lasso_model_linear, newx = x_linear, s = best_lambda_linear)
+squared_diff <- (predictions - y_linear)^2
+mean_squared_error <- mean(squared_diff)
+rmse <- sqrt(mean_squared_error)
+```
+
+```{R}
+#Linear Ridge
+ridge_model_linear <- cv.glmnet(x_linear, y_linear, alpha = 0)
+plot(ridge_model_linear)
+best_lambda_ridge <- ridge_model_linear$lambda.min
+best_lambda_ridge
+ridge_coefs_linear <- coef(ridge_model_linear, s = best_lambda_ridge)
+ridge_coefs_linear
+```
+
+```{R}
+predictions_two <- predict(ridge_model_linear, newx = x_linear, s = best_lambda_ridge)
+squared_diff_two <- (predictions_two - y_linear)^2
+mean_squared_error_two <- mean(squared_diff_two)
+rmse_two <- sqrt(mean_squared_error_two) #RMSE for Linear Lasso
+```
+
+Autocorrelation for  linear regression
+```{R}
+# Fit linear regression model
+linear_model_tidyset <- lm(ConsumptionTarget ~ ., data = tidyset)
+# Obtain residuals for DW test
+residuals_two <- residuals(linear_model_tidyset)
+dw_test_two <- dwtest(linear_model_tidyset, alternative = "two.sided")
+print(dw_test_two)
+```

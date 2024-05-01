@@ -14,9 +14,11 @@ jupyter:
 
 Autocorrelation Resource - https://www.statology.org/durbin-watson-test-r/
 
-## Tegression 
+## Regression 
 
 Logistic Regression on Tidyset
+
+Cleaned Tidyset can be found in data folder
 
 ```{R}
 library(readr)
@@ -34,7 +36,6 @@ library(glmnet)
 
 #Logistic Regression
 tidyset <- na.omit(tidyset)
-
 logistic_model_tidyset <- glm(is_business ~., data = tidyset, family = binomial)
 summary(logistic_model_tidyset)
 predictions <- predict(logistic_model_tidyset, newdata = tidyset, type = "response")
@@ -43,12 +44,11 @@ accuracy <- mean(predicted_classes == tidyset$is_business)
 ```
 
 ```{R}
-# Logisitc versus LDA
+# Logistic versus LDA
 logistic_model <- glm(is_business ~ ., data = tidyset, family = binomial)
 lda_model <- lda(is_business ~ ., data = tidyset)
 logistic_pred <- predict(logistic_model, type = "response")
 lda_pred <- predict(lda_model, type = "response")$posterior[,2]
-
 
 #curves
 roc_logistic <- roc(tidyset$is_business, logistic_pred)
@@ -70,11 +70,9 @@ lda_pred_class <- ifelse(lda_pred > 0.5, 1, 0)
 accuracy_logistic <- mean(logistic_pred_class == tidyset$is_business)
 accuracy_lda <- mean(lda_pred_class == tidyset$is_business)
 
-#Improoved accuracy
+#Improved accuracy
 cat("Logistic Regression Accuracy:", accuracy_logistic, "\n")
 cat("LDA Accuracy:", accuracy_lda, "\n")
-
-
 ```
 
 Autocorrelation for Logistic Regression
@@ -107,7 +105,6 @@ plot(cv_model_ridge_logistic)
 ```
 
 ```{R}
-
 # For Lasso Logistic Regression
 lasso_predicted <- predict(cv_model_lasso_logistic, newx = x, s = best_lambda_lasso, type = "response")
 lasso_predicted_class <- ifelse(lasso_predicted > 0.5, 1, 0)
@@ -124,7 +121,6 @@ ridge_accuracy
 
 Linear Regression
 ```{R}
-
 #linear_model_tidyset <- lm(ConsumptionTarget - ProductionTarget ~., data = tidyset)
 #summary(linear_model_tidyset)
 
@@ -153,6 +149,7 @@ best_lambda_linear
 lasso_coefs_linear <- coef(lasso_model_linear, s = best_lambda_linear)
 lasso_coefs_linear
 ```
+
 Getting rmse for the linar model (lasso)
 ```{R}
 predictions <- predict(lasso_model_linear, newx = x_linear, s = best_lambda_linear)
@@ -175,7 +172,7 @@ ridge_coefs_linear
 predictions_two <- predict(ridge_model_linear, newx = x_linear, s = best_lambda_ridge)
 squared_diff_two <- (predictions_two - y_linear)^2
 mean_squared_error_two <- mean(squared_diff_two)
-rmse_two <- sqrt(mean_squared_error_two)
+rmse_two <- sqrt(mean_squared_error_two) #RMSE for Linear Ridge
 ```
 
 Autocorrelation for  linear regression
@@ -183,7 +180,7 @@ Autocorrelation for  linear regression
 # Fit linear regression model
 linear_model_tidyset <- lm(ConsumptionTarget ~ ., data = tidyset)
 # Obtain residuals for DW test
-residuals <- residuals(linear_model_tidyset)
-dw_test <- dwtest(linear_model_tidyset, alternative = "two.sided")
-print(dw_test)
+residuals_two <- residuals(linear_model_tidyset)
+dw_test_two <- dwtest(linear_model_tidyset, alternative = "two.sided")
+print(dw_test_two)
 ```
